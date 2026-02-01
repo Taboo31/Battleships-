@@ -136,7 +136,12 @@ def create_mainMenu(baseConfigs, filePaths, virtual_screen):
 
 def draw_tilemap_battleShipGame(baseConfigs, rendered_letters, rendered_numbers, GRID, virtual_screen):
 
-   
+                                        # change this (0, 255, 0) to something else in baseconfigs at somepoint
+    pygame.draw.rect(virtual_screen, (0, 255, 0), (baseConfigs.BOARD_X_ORIGIN - (baseConfigs.LINE_WIDTH_X % baseConfigs.TILE_SIZE),\
+                                                    baseConfigs.BOARD_Y_ORIGIN - (baseConfigs.LINE_WIDTH_Y % baseConfigs.TILE_SIZE),\
+                                                    baseConfigs.LINE_WIDTH_X * (baseConfigs.GAME_BOARD_SIZE + 4),\
+                                                    (baseConfigs.LINE_WIDTH_Y * baseConfigs.GAME_BOARD_SIZE) + baseConfigs.LINE_WIDTH_Y % baseConfigs.TILE_SIZE ) # +3 is the offset on the right
+                    )
 
     for row in GRID: # the tilemap should is a square so this will work if its no longer a square there is an error here
         for tile in row:
@@ -160,6 +165,8 @@ def draw_tilemap_battleShipGame(baseConfigs, rendered_letters, rendered_numbers,
                 currentNumberPosition = currentNumber.get_rect(center = tile.rect.center)
 
                 virtual_screen.blit(currentNumber, currentNumberPosition)
+    
+    
 
 
 
@@ -206,11 +213,11 @@ def buttonLogic_mainMenu(baseConfigs, buttonChosen, rendered_items, window, virt
    
     if buttonChosen == 1:
        
-        print("Settings")
+        print("Settings") # call functions
    
     if buttonChosen == 2:
        
-        print("Help")
+        print("Help") # call functions
        
     if buttonChosen == 3: # put code you want to happen before exit here
         exit()
@@ -220,7 +227,7 @@ def buttonLogic_mainMenu(baseConfigs, buttonChosen, rendered_items, window, virt
 
 
    
-def get_tile_battleShipGame(baseConfigs, grid, givenCoordinates = None): # returns the tile that the mouse cursor is on as a tuple if given coordinates returns square for coordinates
+def get_tile_battleShipGame(baseConfigs, grid, givenCoordinates = None): # returns the tile that the mouse cursor is on as a class object if given coordinates returns class object touching coordinates
    
     if givenCoordinates == None: # if you find another pixel position to input add it to this if stuff
         pixelPosition = realToVirtual_mouse(baseConfigs)
@@ -245,14 +252,12 @@ def get_tile_battleShipGame(baseConfigs, grid, givenCoordinates = None): # retur
         return None
     
 
-
 # btw this doesnt work at all
-def place_ship(baseConfigs, rendered_items, ship_object, start_pos): # THE GRIDS ORIGIN (upper leftmost tile IS ALWAYS (1, 1) AND LAST POINT IS (GAMEBOARD_SIZE - 1, GAMEBOARD_SIZE - 1))
-    print(start_pos)
+def place_ship(baseConfigs, rendered_items, ship_object, start_pos, place_ship = True): # THE GRIDS ORIGIN (upper leftmost tile IS ALWAYS (1, 1) AND LAST POINT IS (GAMEBOARD_SIZE - 1, GAMEBOARD_SIZE - 1))
+
     ship_object.ship_starting_pos = start_pos
     ship_coords_to_be = ship_object.get_coords_ship_is_on()
 
-    print(ship_coords_to_be)
     for coord in ship_coords_to_be: # iterate through each coord the ship will be on
 
         if not ((1 <= coord[0] < baseConfigs.GAME_BOARD_SIZE) and (1 <= coord[1] < baseConfigs.GAME_BOARD_SIZE)):
@@ -261,13 +266,16 @@ def place_ship(baseConfigs, rendered_items, ship_object, start_pos): # THE GRIDS
         if rendered_items[2][coord[1]][coord[0]].ship != None:
 
             return False # the ship that will be placed is overlapping with an already placed ship
-        
-    for x, y in ship_coords_to_be:
 
-        rendered_items[2][y][x].ship = ship_object
-        print(f"from grid pos{rendered_items[2][y][x].grid_pos}")
+    if place_ship == True:    
+        for x, y in ship_coords_to_be:
+
+            rendered_items[2][y][x].ship = ship_object
     
-    return True # successful placement
+        return True # successful placement
+    
+    else:
+        return ship_coords_to_be
     
 
 
@@ -289,18 +297,33 @@ def highlight_selected_square(baseConfigs, rendered_items, virtual_screen):
 
         for x in range(baseConfigs.GAME_BOARD_SIZE): # iterate through all tiles on board
             for y in range(baseConfigs.GAME_BOARD_SIZE):
-                if (rendered_items[2][x][y].rect.collidepoint(realToVirtual_mouse(baseConfigs)) == True) and\
-                    not (rendered_items[2][x][y].grid_pos[0] == 0 or rendered_items[2][x][y].grid_pos[1] == 0): # line above checks if mouse on tile, line below check if tile on board
-                    pygame.draw.rect(virtual_screen, ((rendered_items[2][x][y].colour[0] * 0.75, rendered_items[2][x][y].colour[1] * 0.75, rendered_items[2][x][y].colour[2] * 0.75)), rendered_items[2][x][y].rect) 
+                if (rendered_items[2][y][x].rect.collidepoint(realToVirtual_mouse(baseConfigs)) == True) and\
+                    not (rendered_items[2][y][x].grid_pos[0] == 0 or rendered_items[2][y][x].grid_pos[1] == 0): # line above checks if mouse on tile, line below check if tile on board
+
+                    pygame.draw.rect(virtual_screen, ((rendered_items[2][y][x].colour[0] * 0.75, rendered_items[2][y][x].colour[1] * 0.75, rendered_items[2][y][x].colour[2] * 0.75)), rendered_items[2][y][x].rect) 
                     # by doing rendered_items[2][x][y].colour[0] you change/dampen the colour no matter what colour is underneath so its goated
 
-def highlight_selected_square_placingShips(baseConfigs, rendered_items, virtual_screen): #working on
+def highlight_selected_square_placingShips(baseConfigs, ship_coords_to_be, rendered_items, virtual_screen): #working on
 
+    acceptable_coords = []
+    placement = True
+
+    for y in range(baseConfigs.GAME_BOARD_SIZE):
         for x in range(baseConfigs.GAME_BOARD_SIZE):
-            for y in range(baseConfigs.GAME_BOARD_SIZE):
-                if (rendered_items[2][x][y].rect.collidepoint(realToVirtual_mouse(baseConfigs)) == True) and\
-                    not (rendered_items[2][x][y].grid_pos[0] == 0 or rendered_items[2][x][y].grid_pos[1] == 0):
-                    pygame.draw.rect(virtual_screen, baseConfigs.SELECTED_TILE_COLOUR, rendered_items[2][x][y].rect) 
+            if not (rendered_items[2][y][x].grid_pos[0] == 0 or rendered_items[2][y][x].grid_pos[1] == 0):
+                    
+                    acceptable_coords.append((rendered_items[2][y][x].grid_pos))
+
+    for current_coord in ship_coords_to_be:
+        
+        if current_coord not in acceptable_coords:
+            
+            placement = False
+    
+    if placement == True:
+
+        for y, x in ship_coords_to_be:                
+            pygame.draw.rect(virtual_screen, (rendered_items[2][x][y].colour[0] * 0.75, rendered_items[2][x][y].colour[1] * 0.75, rendered_items[2][x][y].colour[2] * 0.75), rendered_items[2][x][y].rect) 
 
                
 class Ship:
@@ -409,7 +432,7 @@ def realToVirtual_mouse(baseConfigs):
 
 # screens code
 
-testbattleship = Battleship()
+testbattleship = Carrier()
 def battleShipsGame(baseConfigs, rendered_items, window, virtual_screen):
 
     running = True
@@ -424,15 +447,20 @@ def battleShipsGame(baseConfigs, rendered_items, window, virtual_screen):
                 exit()
 
             if event.type == pygame.MOUSEBUTTONDOWN:
+                
+                if event.button == 1: # left click to get the tile object
+                    
+                    if get_tile_battleShipGame(baseConfigs, rendered_items[2], realToVirtual_mouse(baseConfigs)) != None:
+                        print(get_tile_battleShipGame(baseConfigs, rendered_items[2], realToVirtual_mouse(baseConfigs)).ship)
 
-                if event.button == 1:
+                if event.button == 3: # right click to place ship
 
                     if (get_tile_battleShipGame(baseConfigs, rendered_items[2])) != None:
                         place_ship(baseConfigs, rendered_items, testbattleship, (get_tile_battleShipGame(baseConfigs, rendered_items[2], realToVirtual_mouse(baseConfigs))).grid_pos)
 
             if event.type == pygame.KEYDOWN:
 
-                if event.key == pygame.K_r:
+                if event.key == pygame.K_r: #if key r down rotates ship
 
                     testbattleship.rotated = not testbattleship.rotated # change this to like better at saomepoint also prolly make it so it can rotate 360 degrees not just rotate between horizontal and not
 
@@ -446,6 +474,15 @@ def battleShipsGame(baseConfigs, rendered_items, window, virtual_screen):
 
         #RENDERED_ITEMS = [RENDERED_LETTERS, RENDERED_NUMBERS, GRID] this is what rendered items looks like
         draw_tilemap_battleShipGame(baseConfigs, rendered_items[0], rendered_items[1], rendered_items[2], virtual_screen)
+
+    #testing here
+        if get_tile_battleShipGame(baseConfigs, rendered_items[2], realToVirtual_mouse(baseConfigs)) != None:
+            placeship = place_ship(baseConfigs, rendered_items, testbattleship, (get_tile_battleShipGame(baseConfigs, rendered_items[2], realToVirtual_mouse(baseConfigs))).grid_pos, False)
+
+            if type(placeship) != bool:
+                highlight_selected_square_placingShips(baseConfigs, placeship, rendered_items, virtual_screen)
+
+    #testing ends here
         highlight_selected_square(baseConfigs, rendered_items, virtual_screen)
 
         virtualToReal_window(baseConfigs, virtual_screen, window)
