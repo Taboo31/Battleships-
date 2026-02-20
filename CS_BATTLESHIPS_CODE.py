@@ -861,14 +861,14 @@ class displayed_screen():
 
                 #     game_state = help(baseConfigs, events, virtual_screen, menu_bg, window)
 
-                # case "quit":
+                case "quit":
 
-                #     running = False
+                    self.running = False
             
-                # case _:
+                 case _:
 
-                #     print("error invalid game_state")
-                #     exit()
+                    print("error invalid game_state")
+                    exit()
                 
             
                 
