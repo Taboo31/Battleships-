@@ -7,6 +7,7 @@ class FilePaths:
         self.ocean_bg = r"PICTURES\bg_ocean_v2.png"
         self.battleships_homescreen = r"PICTURES\battleships_homescreen.png"
         self.battleships_icon = r"PICTURES\battleships_icon.png"
+        self.font = r"FONTS\ITC_Machine_Regular.otf"
 
 class Configs:
     def __init__(self):
@@ -26,10 +27,13 @@ class Configs:
         self.LINE_WIDTH_Y = self.TILE_SIZE + 5
         self.BUTTON_SPACING = self.BUTTON_SIZE + 20
 
-        self.GAME_BOARD_SIZE = 11 # dont go over 27 cuz then run out of letters so an error
+        self.GAME_BOARD_SIZE = 11 # dont go over 27 cuz then run out of letters so an error, add a cap so volume of ships placed wont be greater then amount of available spaces on board?
 
         self.TEXT_COLOUR = (255, 0, 0)
         self.HIGHLIGHTED_TEXT_COLOUR = (0, 0, 0)
+        self.HELP_TEXT_COLOUR = (0, 0, 0)
+        self.READY_TEXT_COLOUR = (0, 0, 0)
+
         self.TILE_COLOUR = (255, 255, 255)
         self.SCREEN_COLOUR = (174, 198, 207)
         self.BUTTON_COLOUR = (50, 50, 65)
@@ -42,6 +46,9 @@ class Configs:
        
         self.LETTERS = [" ","A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
         self.NUMBERS = [" "] + [str(i) for i in range(1, 27)]
+
+        self.HELP_TEXT_X_MARGIN = 25
+        self.HELP_TEXT_Y_MARGIN = self.VIRTUAL_SURFACE[1] // 3.5 # prolly change 3.5 to something
         
         self.MAX_ALLOWED_SHIPS = 5
 
@@ -85,7 +92,6 @@ class ShipIcons_PANEL:
 
 # ships
 
-
 class Ship:
 
     def __init__(self, size, shipStartingPos = None):
@@ -113,7 +119,6 @@ class Ship:
        
         return coords
        
-
 class Carrier(Ship):
 
     def __init__(self):
@@ -149,19 +154,22 @@ class Destroyer(Ship):
 
 class Panel:
 
-    def __init__(self, baseConfigs, back_board, origin):
+    def __init__(self, baseConfigs, filePaths, back_board, origin):
 
+        self.filePaths = filePaths
         self.origin = origin
         self.back_board = back_board
-        self.battleship_rects, self.ready_button, self.back_board_panel = self.create_side_panel(baseConfigs)
-
-
+        self.battleship_rects, self.ready_button, self.back_board_panel, self.rendered_ready_text = self.create_side_panel(baseConfigs)
 
     def create_side_panel(self, baseConfigs):
 
         TILE = baseConfigs.TILE_SIZE
         MARGIN = 15
+        font = pygame.font.Font(self.filePaths.font, baseConfigs.FONT_SIZE)
+
         board_x_origin, board_y_origin = self.origin
+
+        # this is the black panel rect
 
         rect_panel = pygame.Rect(board_x_origin + self.back_board.width,\
                                     (board_y_origin - (baseConfigs.LINE_WIDTH_Y % baseConfigs.TILE_SIZE)),\
@@ -169,6 +177,8 @@ class Panel:
                                     (baseConfigs.LINE_WIDTH_Y * baseConfigs.GAME_BOARD_SIZE) + baseConfigs.LINE_WIDTH_Y % baseConfigs.TILE_SIZE
                                 )
         
+        # this is for the ship icons on the panel
+
         battleship_rects = []
 
         # the layout of the buttons on the external pattern left is the size (keep same as the ship sizes or maybe introduce a thing so its like ship_object.size)
@@ -181,9 +191,6 @@ class Panel:
             (3, "right", 0.55, Submarine),
             (2, "right", 1.3, Destroyer),
         ]
-
-        ready_button = pygame.Rect(0, rect_panel.bottom - baseConfigs.LINE_WIDTH_Y * 1.5, rect_panel.width - 10, baseConfigs.TILE_SIZE * 1.5)
-        ready_button.centerx = rect_panel.centerx
         
         for size, column, row, boat_val in layout:
 
@@ -198,17 +205,27 @@ class Panel:
 
             battleship_rects.append((rect, boat_val))
 
+        # this is for the ready button
+
         ready_button = pygame.Rect(0, rect_panel.bottom - baseConfigs.LINE_WIDTH_Y * 1.5, rect_panel.width - 10, baseConfigs.TILE_SIZE * 1.5)
         ready_button.centerx = rect_panel.centerx
 
-        # this is the external black square boundary to the side
+        # this is for the ready button text
         
-        return battleship_rects, ready_button, rect_panel
+        ready_text = "READY"
+        RENDERED_READY_TEXT = font.render(ready_text, True, baseConfigs.READY_TEXT_COLOUR)
+
+        # center the ready text to the ready button
+
+        RENDERED_READY_TEXT.get_rect(center = ready_button.center)
+        
+        return battleship_rects, ready_button, rect_panel, RENDERED_READY_TEXT
 
 class Board:
 
-    def __init__(self, baseConfigs, is_enemy):
+    def __init__(self, baseConfigs, filePaths, is_enemy):
 
+        self.filePaths = filePaths
         self.is_enemy = is_enemy
 
         if is_enemy == True:
@@ -240,10 +257,9 @@ class Board:
                                 (self.is_enemy)
                             ))
 
-
             GRID.append(row)
 
-        font = pygame.font.Font(None, baseConfigs.FONT_SIZE)
+        font = pygame.font.Font(self.filePaths.font, baseConfigs.FONT_SIZE)
 
         RENDERED_LETTERS = [font.render(character, True, baseConfigs.TEXT_COLOUR) for character in baseConfigs.LETTERS]
         RENDERED_NUMBERS = [font.render(character, True, baseConfigs.TEXT_COLOUR) for character in baseConfigs.NUMBERS]
@@ -271,9 +287,13 @@ class Renderer:
         self.virtual_screen = virtual_screen
         self.window = window
 
+    # misc renders
+
     def virtualToReal_window(self, baseConfigs):
 
         self.window.blit(pygame.transform.smoothscale(self.virtual_screen, baseConfigs.RESOLUTION), (0, 0))
+
+    # main menu renders
 
     def draw_mainMenu(self, baseConfigs, mainMenu):
 
@@ -303,13 +323,38 @@ class Renderer:
                 exit()
 
 
-        # draw image
+        # draw the battleships cover image
+
         x_coordinate = baseConfigs.VIRTUAL_SURFACE[0] - (mainMenu.cover_image.get_size()[0] - mainMenu.cover_image.get_size()[0] * 0.075)
         y_coordinate = baseConfigs.VIRTUAL_SURFACE[1] - mainMenu.cover_image.get_size()[1]
     
         self.virtual_screen.blit(mainMenu.cover_image, (x_coordinate, y_coordinate))
 
+    # help screen renders
 
+    def draw_helpScreen(self, baseConfigs, helpMenu):
+
+        x_text = baseConfigs.HELP_TEXT_X_MARGIN
+
+        # draw help screen text
+
+        for index, text in enumerate(helpMenu.helpText):
+
+            y_text = (index * baseConfigs.FONT_SIZE) + baseConfigs.HELP_TEXT_Y_MARGIN
+            self.virtual_screen.blit(text, (x_text, y_text))
+
+        # draw return rect
+
+        x_rect = baseConfigs.VIRTUAL_SURFACE[0] 
+        y_rect = baseConfigs.VIRTUAL_SURFACE[1]
+
+        helpMenu.returnRect.bottomright = (x_rect, y_rect)
+        pygame.draw.rect(self.virtual_screen, baseConfigs.BUTTON_COLOUR, helpMenu.returnRect)
+
+        # draw return text
+                
+        pos = helpMenu.rectText.get_rect(center = helpMenu.returnRect.center)
+        self.virtual_screen.blit(helpMenu.rectText, pos)
 
     # battleship renders
     
@@ -349,9 +394,17 @@ class Renderer:
 
     def draw_external_player_panel(self, player_game_panel):
 
+        # draw back panel and ready button
+
         pygame.draw.rect(self.virtual_screen, (0, 0, 0), player_game_panel.back_board_panel)
         pygame.draw.rect(self.virtual_screen, (0, 255, 0), player_game_panel.ready_button)
 
+        # draw ready button text
+
+        pos = player_game_panel.rendered_ready_text.get_rect(center = player_game_panel.ready_button.center)
+        self.virtual_screen.blit(player_game_panel.rendered_ready_text, pos)
+
+        # draw battleship icons
         for battleship_rect, boat_val in player_game_panel.battleship_rects:
             pygame.draw.rect(self.virtual_screen, (0, 0, 255), battleship_rect)
     
@@ -363,7 +416,6 @@ class Renderer:
     def highlight_selected_square(self, board, y, x):
 
         pygame.draw.rect(self.virtual_screen, ((board.grid[y][x].colour[0] * 0.75, board.grid[y][x].colour[1] * 0.75, board.grid[y][x].colour[2] * 0.75)), board.grid[y][x].rect)
-
 
 class Battleships:
 
@@ -378,7 +430,6 @@ class Battleships:
         self.battleship_rects = player_gamePanel.battleship_rects
         self.battleship_object = None
         self.placed_ship_types = set()
-
 
     def get_tile_battleShipGame(self, baseConfigs, givenCoordinates = None): # returns the tile that the mouse cursor is on as a class object if given coordinates returns class object touching coordinates
    
@@ -597,23 +648,76 @@ class EnemySetup:
     def get_Enemy(self):
         return self.enemy_gameBoard
 
+class Help:
 
+    def __init__(self, baseConfigs, filePaths, render):
 
+        self.filePaths = filePaths
+        self.render = render
 
+        self.helpText, self.rectText, self.returnRect = self.create_helpScreen(baseConfigs)
+    
+    def create_helpScreen(self, baseConfigs):
+    
+        # create the help text
 
+        font = pygame.font.Font(self.filePaths.font, baseConfigs.FONT_SIZE)
 
+        # "" are spaces inbetween text blocks
+        help_text = ["Your board is the board on the left.",
+                    "Your enemies board is on the right.",
+                    "",
+                    "To select a ship to place left click on a blue square. That ship is now selected.",
+                    "In the base game, each ship can only be placed once.",
+                    "Press R to rotate a ship",
+                    "After placing all of your ships, press the green rectangle.",
+                    "Click on a tile on the right board to attack it",
+                    "", 
+                    "A yellow square corresponds to a hit tile with a ship on it.",
+                    "A light blue square corresponds to a hit tile with no ship on it."
+                    ]
+        
+        RENDERED_TEXT = [font.render(text, True, baseConfigs.HELP_TEXT_COLOUR) for text in help_text]
 
+        # return rect text
 
+        text = "Return"
 
+        RENDERED_RETURN_TEXT = font.render(text, True, baseConfigs.HELP_TEXT_COLOUR)
 
+        # create the return to main menu rectangle
+
+        returnRect = pygame.Rect(0, 0, baseConfigs.TILE_SIZE * 6, baseConfigs.TILE_SIZE * 2)
+
+        return RENDERED_TEXT, RENDERED_RETURN_TEXT, returnRect
+    
+    def draw_helpScreen(self, baseConfigs):
+
+        self.render.fill_screen(baseConfigs)
+        self.render.draw_helpScreen(baseConfigs, self)
+    
+    def display_helpMenu(self, baseConfigs, events):
+
+        self.draw_helpScreen(baseConfigs)
+
+        for event in events:
+            
+            if event.type == pygame.MOUSEBUTTONDOWN:
+
+                if event.button == 1:
+
+                    if self.returnRect.collidepoint(realToVirtual_mouse(baseConfigs)) == True:
+                        
+                        return "mainMenu"
+        return "help"
+    
 class MainMenu:
 
     def __init__(self, baseConfigs, filePaths, render):
 
+        self.filePaths = filePaths
         self.buttons, self.cover_image, self.text, self.highlighted_text, self.menu_bg = self.create_mainMenu(baseConfigs, filePaths)
         self.render = render
-
-
 
     def create_mainMenu(self, baseConfigs, filePaths):
 
@@ -632,7 +736,8 @@ class MainMenu:
         # render the button text
     
         buttonText = ["Play", "Settings", "Help", "Quit"] #put this in the baseConfig folder?
-        font = pygame.font.Font(None, baseConfigs.FONT_SIZE)
+        font = pygame.font.Font(self.filePaths.font, baseConfigs.FONT_SIZE)
+
         RENDERED_TEXT = [font.render(text, True, baseConfigs.TEXT_COLOUR) for text in buttonText]
         RENDERED_TEXT_HIGHLIGHTED = [font.render(text, True, baseConfigs.HIGHLIGHTED_TEXT_COLOUR) for text in buttonText]
                         
@@ -649,7 +754,6 @@ class MainMenu:
     def draw_mainMenu(self, baseConfigs):
         
         self.render.draw_mainMenu(baseConfigs, self)
-
 
     def get_button_mainMenu(self, baseConfigs, buttons):
 
@@ -716,10 +820,6 @@ class Match():
                 if tile.grid_pos == grid_pos:
                     tile.hit = True
 
-
-        
-        
-
     def player_turn(self, baseConfigs):
         
         for row in self.enemy_gameBoard.grid:
@@ -767,9 +867,6 @@ class Match():
 
             exit()                   
                 
-
-
-
     def order_of_instructions(self, baseConfigs, events):
 
         self.enemy_gameBoard.update_board()
@@ -789,24 +886,17 @@ class Match():
 
                     if validity == "valid":
                         turnOver = True
-            
-        
+                
         if turnOver == True:
             self.enemy_turn()
         
-
         self.check_wins()    
-
-        
-            
+          
         return "battleShips_game"
-
-
-
 
 class displayed_screen():
     
-    def __init__(self, window, virtual_screen, mainMenu, battleships, gameMatch, render):
+    def __init__(self, window, virtual_screen, mainMenu, battleships, gameMatch, help, render):
 
         # renders stuff (needed to scale the res to user screen)
 
@@ -822,6 +912,7 @@ class displayed_screen():
         self.mainMenu = mainMenu
         self.battleships = battleships
         self.gameMatch = gameMatch
+        self.help = help
 
         # running and screen states
         self.state = "mainMenu"
@@ -857,15 +948,16 @@ class displayed_screen():
 
                     self.state = self.gameMatch.order_of_instructions(baseConfigs, events)
             
-                # case "help":
+                case "help":
 
-                #     game_state = help(baseConfigs, events, virtual_screen, menu_bg, window)
+                    self.state = self.help.display_helpMenu(baseConfigs, events)
 
                 case "quit":
 
                     self.running = False
-            
-                 case _:
+
+                case _:
+
 
                     print("error invalid game_state")
                     exit()
@@ -875,11 +967,7 @@ class displayed_screen():
             self.render.virtualToReal_window(baseConfigs)
             pygame.display.update()
 
-                
-    
         exit()
-
-
 
 def realToVirtual_mouse(baseConfigs): # takes resolution as input and returns x and y mouse coordinates as tuple
 
@@ -908,16 +996,18 @@ def loadStartUp():
 
     mainMenu = MainMenu(baseConfigs, filePaths, render)                       # create the main menu
 
-    player_gameBoard = Board(baseConfigs, is_enemy = False)                     # create the player board
-    enemy_gameBoard  = Board(baseConfigs, is_enemy = True)                      # create the enemy board
-    player_gamePanel = Panel(baseConfigs, player_gameBoard.back_board, player_gameBoard.origin) # create player selection panel
+    player_gameBoard = Board(baseConfigs, filePaths, is_enemy = False)                     # create the player board
+    enemy_gameBoard  = Board(baseConfigs, filePaths, is_enemy = True)                      # create the enemy board
+    player_gamePanel = Panel(baseConfigs, filePaths, player_gameBoard.back_board, player_gameBoard.origin) # create player selection panel
 
     battleship       = Battleships(player_gameBoard, player_gamePanel, render)                # battleship screen
-    enemy_setup        = EnemySetup(enemy_gameBoard)                                            # enemy setup time
+    enemy_setup      = EnemySetup(enemy_gameBoard)                                            # enemy setup time
 
-    game_match          = Match(baseConfigs, enemy_setup, battleship, render)                              # playing against the AI
+    help_Menu        = Help(baseConfigs, filePaths, render)
 
-    game = displayed_screen(window, virtual_screen, mainMenu, battleship, game_match, render) # creates game controller
+    game_match          = Match(baseConfigs, enemy_setup, battleship, render)             # playing against the AI
+
+    game = displayed_screen(window, virtual_screen, mainMenu, battleship, game_match, help_Menu, render) # creates game controller
     game.run(baseConfigs)                                                                       # runs the game
 
 loadStartUp()
