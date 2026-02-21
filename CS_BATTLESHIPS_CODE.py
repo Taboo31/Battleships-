@@ -7,7 +7,13 @@ class FilePaths:
         self.ocean_bg = r"PICTURES\bg_ocean_v2.png"
         self.battleships_homescreen = r"PICTURES\battleships_homescreen.png"
         self.battleships_icon = r"PICTURES\battleships_icon.png"
-        self.font = r"FONTS\ITC_Machine_Regular.otf"
+
+        self.font = r"FONTS\ITC_Machine_Regular.otf"    
+        self.explosion_spritesheet = r"SPRITES\explosion_sprite.png"
+
+        self.background_music = r"SOUNDTRACKS\looped_lobby_music.mp3"
+        self.explosion_sound  = r"SOUNDTRACKS\explosion_sound.mp3"
+
 
 class Configs:
     def __init__(self):
@@ -38,19 +44,71 @@ class Configs:
         self.SCREEN_COLOUR = (174, 198, 207)
         self.BUTTON_COLOUR = (50, 50, 65)
 
+        self.USED_ICON_COLOUR = (200, 200, 200)
+        self.BACK_BOARD_COLOUR= (0, 0, 0)
+        self.BACK_BOARD_PANEL_COLOUR = (0, 0, 0)
+        self.READY_BUTTON_COLOUR = (0, 255, 0)
+        self.OVERLAP_COLOUR = (255, 0, 0)
+        self.END_SCREEN_TEXT_COLOUR = (0, 0, 0)
+
+        self.COLOURKEY_EXPLOSIONS = (0, 0, 0) # the transparent colour for the explosion spritesheet should prolly be white but then if its white change the background of the sprite sheet to white
+
         self.BOARD_X_ORIGIN = 150 # the starting x position of the top left tile
         self.BOARD_Y_ORIGIN = self.BOARD_X_ORIGIN # the starting y position of the top left tile
 
         self.ENEMY_BOARD_X_ORIGIN = self.BOARD_X_ORIGIN + self.LINE_WIDTH_X * self.GAME_BOARD_SIZE + 300
         self.ENEMY_BOARD_Y_ORIGIN = self.BOARD_Y_ORIGIN
        
+        # labels on boards
+
         self.LETTERS = [" ","A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
         self.NUMBERS = [" "] + [str(i) for i in range(1, 27)]
 
+        # margins on the help text screen
+
         self.HELP_TEXT_X_MARGIN = 25
-        self.HELP_TEXT_Y_MARGIN = self.VIRTUAL_SURFACE[1] // 3.5 # prolly change 3.5 to something
+        self.HELP_TEXT_Y_MARGIN = self.VIRTUAL_SURFACE[1] // 3.5 # prolly change 3.5 to something that scales with the screen
+        
+        # margins on the end text screen
+
+        self.END_TEXT_X_MARGIN = 25
+        self.END_TEXT_Y_MARGIN = self.VIRTUAL_SURFACE[1] // 3.5
+
+        # for animations
+
+        self.ANIMATION_CD = 10 # cooldown between animation frames in ms
         
         self.MAX_ALLOWED_SHIPS = 5
+
+class Sound:
+
+    def __init__(self, explosion_sound, background_music):
+
+        self.explosion_sound = explosion_sound
+        self.background_music = background_music
+
+        self.MUSIC_END = pygame.USEREVENT + 1
+    
+    def load_music(self):
+        pygame.mixer.music.load(self.background_music)
+    
+    def startUP(self):
+
+        self.play_explosion()
+
+    def play_bg_music(self):
+
+        pygame.mixer_music.load(self.background_music)
+        pygame.mixer.music.play(-1)
+    
+    def play_explosion(self):
+
+        pygame.mixer_music.unload() #unload the bg music from music mixer
+        pygame.mixer_music.load(self.explosion_sound)
+        pygame.mixer_music.play()
+
+        pygame.mixer.music.set_endevent(self.MUSIC_END)
+
 
 class Tile:
    
@@ -66,38 +124,62 @@ class Tile:
    
    
     def tile_update(self):
-       
-        if self.ship != None and self.hit == True: # if tile has ship on it and been hit change colour to brown
-            self.colour = (255, 255, 0)
-        
+
+
+        if self.ship != None and self.hit == True:
+            if self.ship.hitTiles == self.ship.size:
+                self.colour = (255, 0, 0) # red for if ship is fully destroyed
+
+            else:
+                self.colour = (255, 255, 0) # tellow if ship is hit but alive
+
         elif self.ship == None and self.hit == True: # if tile has no ship but been hit change to light blue
             self.colour = (200, 200, 255)
 
-        elif self.ship != None:# and self.is_enemy is not True: # if the tile has a ship on it change it to green
+        elif self.ship != None and self.is_enemy is not True: # if the tile has a ship on it change it to green
             self.colour = (0, 255, 0)
-
+        
         else:
             self.colour = (255, 255, 255) #if nothing make tile white
 
-class ShipIcons_PANEL:
+class SpriteSheet:
 
-    def __init__(self, size, position, scale_factor, ship_type):
+    def __init__(self, sprite_sheet):
 
-        self.size = size
-        self.position = position
-        self.scale_factor = scale_factor
-        self.ship_type = ship_type
+        # if sprite_sheet hasnt been loaded yet load it otherwise dont load it
+        if type(sprite_sheet) == str:
 
-        self.colour = (0, 0, 255)
+                self.sprite_sheet = pygame.image.load(sprite_sheet).convert_alpha()
 
+
+
+        else:
+            self.sprite_sheet = sprite_sheet
+        
+
+    # get image returns a single frame in a sprite sheet
+    def get_img(self, frame, width, height, scale, colour):
+
+        # creates a surface the area of the sprite from the sprite sheet and convert it to alpha
+        image = pygame.Surface((width, height)).convert_alpha()
+        # draw the sprite to the surface frame*width gets the specific sprite to the frame (start at 0)
+        image.blit(self.sprite_sheet, (0, 0), ((frame * width), 0, width, height)) # 0 means this will only work with horizontal spritesheets as the y axis doesnt change
+        # change the surface to the size of a new square the new proportion is scale x scale in px
+        image = pygame.transform.scale(image, (scale, scale))
+        # removes the black background of surface
+        image.set_colorkey(colour)
+        # return the frame
+        return image
+    
 # ships
 
 class Ship:
 
-    def __init__(self, size, shipStartingPos = None):
+    def __init__(self, size, type, shipStartingPos = None):
 
         self.hitTiles = 0
         self.size = size
+        self.type = type
         self.ship_starting_pos = shipStartingPos #no idea if this should start with anything
         self.rotated = False  # False = Vertical, True = Horizontal
    
@@ -123,34 +205,59 @@ class Carrier(Ship):
 
     def __init__(self):
 
-        super().__init__(size = 5)
+        super().__init__(size = 5, type = Carrier)
 
 
 class Battleship(Ship):
 
     def __init__(self):
 
-        super().__init__(size = 4)
+        super().__init__(size = 4, type = Battleship)
 
 class Cruiser(Ship):
 
     def __init__(self):
 
-        super().__init__(size = 3)
+        super().__init__(size = 3, type = Cruiser)
 
 
 class Submarine(Ship):
 
     def __init__(self):
 
-        super().__init__(size = 3)
+        super().__init__(size = 3, type = Submarine)
 
 
 class Destroyer(Ship):
 
     def __init__(self):
 
-        super().__init__(size = 2)
+        super().__init__(size = 2, type = Destroyer)
+
+class battleship_icons:
+
+    def __init__(self, size, column, row, boat_type, rect_panel, margin, tile):
+
+        self.size = size
+        self.column = column
+        self.row = row
+        self.boat_type = boat_type
+        self.rect = self.create_rect(rect_panel, margin, tile)
+
+        self.colour = (0, 0, 255)
+    
+    def create_rect(self, rect_panel, margin, tile):
+
+        if self.column == "left":
+            x = rect_panel.x + margin
+        else:
+            x = rect_panel.right - tile - margin
+
+        y = rect_panel.y + margin + self.row * (tile * 6)
+
+        rect = pygame.Rect(x, y, tile, tile * self.size)
+
+        return rect
 
 class Panel:
 
@@ -160,6 +267,9 @@ class Panel:
         self.origin = origin
         self.back_board = back_board
         self.battleship_rects, self.ready_button, self.back_board_panel, self.rendered_ready_text = self.create_side_panel(baseConfigs)
+
+        self.back_board_panel_colour = baseConfigs.BACK_BOARD_PANEL_COLOUR
+        self.ready_button_colour = baseConfigs.READY_BUTTON_COLOUR
 
     def create_side_panel(self, baseConfigs):
 
@@ -179,31 +289,17 @@ class Panel:
         
         # this is for the ship icons on the panel
 
-        battleship_rects = []
-
         # the layout of the buttons on the external pattern left is the size (keep same as the ship sizes or maybe introduce a thing so its like ship_object.size)
         #then its the if the button is on the left or right of the panel then it does that left or right check both put the rect 15px or MARGIN from the boundary
         # the third one is the scale factor for the y axis 
-        layout = [
-            (5, "left",  0, Carrier),
-            (4, "left",  1, Battleship),
-            (3, "right", 0, Cruiser),
-            (3, "right", 0.55, Submarine),
-            (2, "right", 1.3, Destroyer),
-        ]
-        
-        for size, column, row, boat_val in layout:
 
-            if column == "left":
-                x = rect_panel.x + MARGIN
-            else:
-                x = rect_panel.right - TILE - MARGIN
+        carrier_icon   = battleship_icons(5, "left",  0, Carrier, rect_panel, MARGIN, TILE)
+        battleship_icon= battleship_icons(4, "left",  1, Battleship, rect_panel, MARGIN, TILE)
+        cruiser_icon   = battleship_icons(3, "right", 0, Cruiser, rect_panel, MARGIN, TILE)
+        submarine_icon = battleship_icons(3, "right", 0.55, Submarine, rect_panel, MARGIN, TILE)
+        destroyer_icon = battleship_icons(2, "right", 1.3, Destroyer, rect_panel, MARGIN, TILE)
 
-            y = rect_panel.y + MARGIN + row * (TILE * 6)
-
-            rect = pygame.Rect(x, y, TILE, TILE * size)
-
-            battleship_rects.append((rect, boat_val))
+        battleship_rects = [carrier_icon, battleship_icon, cruiser_icon, submarine_icon, destroyer_icon]
 
         # this is for the ready button
 
@@ -227,6 +323,7 @@ class Board:
 
         self.filePaths = filePaths
         self.is_enemy = is_enemy
+        self.backBoard_colour = baseConfigs.BACK_BOARD_COLOUR
 
         if is_enemy == True:
             self.origin = (baseConfigs.ENEMY_BOARD_X_ORIGIN, baseConfigs.ENEMY_BOARD_Y_ORIGIN)
@@ -234,6 +331,7 @@ class Board:
             self.origin = (baseConfigs.BOARD_X_ORIGIN, baseConfigs.BOARD_Y_ORIGIN)
         
         self.rendered_letters, self.rendered_numbers, self.grid, self.back_board = self.create_tilemap(baseConfigs)
+    
 
     def create_tilemap(self, baseConfigs):
 
@@ -253,7 +351,7 @@ class Board:
                 row.append(Tile(pygame.Rect(board_x_coordinates, board_y_coordinates, baseConfigs.TILE_SIZE, baseConfigs.TILE_SIZE),
                                 (x_coordinates, y_coordinates),
                                 (baseConfigs.LETTERS[x_coordinates], baseConfigs.NUMBERS[y_coordinates]),
-                                ((255, 255, 255)),
+                                (baseConfigs.TILE_COLOUR),
                                 (self.is_enemy)
                             ))
 
@@ -330,8 +428,30 @@ class Renderer:
     
         self.virtual_screen.blit(mainMenu.cover_image, (x_coordinate, y_coordinate))
 
-    # help screen renders
+    # end screen renders
+    def draw_endScreen(self, baseConfigs, endScreen):
 
+        x_text = baseConfigs.END_TEXT_X_MARGIN
+
+        # draw end screen text
+                # its 0 because there should only be 1 text so 0 index (you win or you lose)
+        y_text = (0 * baseConfigs.FONT_SIZE) + baseConfigs.END_TEXT_Y_MARGIN
+        self.virtual_screen.blit(endScreen.finalEndText, (x_text, y_text))
+
+        # draw return rect
+
+        x_rect = baseConfigs.VIRTUAL_SURFACE[0] 
+        y_rect = baseConfigs.VIRTUAL_SURFACE[1]
+
+        endScreen.returnRect.bottomright = (x_rect, y_rect)
+        pygame.draw.rect(self.virtual_screen, baseConfigs.BUTTON_COLOUR, endScreen.returnRect)
+
+        # draw return text
+                
+        pos = endScreen.rectText.get_rect(center = endScreen.returnRect.center)
+        self.virtual_screen.blit(endScreen.rectText, pos)
+
+    # help screen renders
     def draw_helpScreen(self, baseConfigs, helpMenu):
 
         x_text = baseConfigs.HELP_TEXT_X_MARGIN
@@ -364,7 +484,7 @@ class Renderer:
 
     def draw_board(self, board): # takes board object as input and draws it to screen
                 
-        pygame.draw.rect(self.virtual_screen, (0, 0, 0), board.back_board) 
+        pygame.draw.rect(self.virtual_screen, board.backBoard_colour, board.back_board) 
 
         for row in board.grid: # the tilemap should is a square so this will work if its no longer a square there is an error here
             for tile in row:
@@ -396,8 +516,8 @@ class Renderer:
 
         # draw back panel and ready button
 
-        pygame.draw.rect(self.virtual_screen, (0, 0, 0), player_game_panel.back_board_panel)
-        pygame.draw.rect(self.virtual_screen, (0, 255, 0), player_game_panel.ready_button)
+        pygame.draw.rect(self.virtual_screen, player_game_panel.back_board_panel_colour, player_game_panel.back_board_panel)
+        pygame.draw.rect(self.virtual_screen, player_game_panel.ready_button_colour, player_game_panel.ready_button)
 
         # draw ready button text
 
@@ -405,16 +525,17 @@ class Renderer:
         self.virtual_screen.blit(player_game_panel.rendered_ready_text, pos)
 
         # draw battleship icons
-        for battleship_rect, boat_val in player_game_panel.battleship_rects:
-            pygame.draw.rect(self.virtual_screen, (0, 0, 255), battleship_rect)
+        for battleship_rect in player_game_panel.battleship_rects:
+            pygame.draw.rect(self.virtual_screen, battleship_rect.colour, battleship_rect.rect)
     
     def highlight_selected_square_placingShips(self, board, ship_coords_to_be):
 
         for x, y in ship_coords_to_be:                
             pygame.draw.rect(self.virtual_screen, (board.grid[y][x].colour[0] * 0.75, board.grid[y][x].colour[1] * 0.75, board.grid[y][x].colour[2] * 0.75), board.grid[y][x].rect)
         
-    def highlight_selected_square(self, board, y, x):
+    def highlight_selected_square(self, board, grid_pos):
 
+        x, y = grid_pos
         pygame.draw.rect(self.virtual_screen, ((board.grid[y][x].colour[0] * 0.75, board.grid[y][x].colour[1] * 0.75, board.grid[y][x].colour[2] * 0.75)), board.grid[y][x].rect)
 
 class Battleships:
@@ -467,7 +588,7 @@ class Battleships:
         
             if self.grid[coord[1]][coord[0]].ship != None: # overlap
  
-                self.grid[coord[1]][coord[0]].colour = (255, 0, 0)
+                self.grid[coord[1]][coord[0]].colour = baseConfigs.OVERLAP_COLOUR
                 place_ship = False 
 
 
@@ -480,17 +601,6 @@ class Battleships:
     
         else:
             return ship_coords_to_be
-
-    def highlight_selected_square(self, baseConfigs):
-
-        for x in range(baseConfigs.GAME_BOARD_SIZE): # iterate through all tiles on board
-            for y in range(baseConfigs.GAME_BOARD_SIZE):
-                if (self.grid[y][x].rect.collidepoint(realToVirtual_mouse(baseConfigs)) == True) and\
-                    not (self.grid[y][x].grid_pos[0] == 0 or self.grid[y][x].grid_pos[1] == 0): # line above checks if mouse on tile, line below check if tile on board
-
-                    self.render.highlight_selected_square(self.player_gameBoard, y, x)
-                    # by doing self.grid[x][y].colour[0] you change/dampen the colour no matter what colour is underneath so its goated
-
 
     def highlight_selected_square_placingShips(self, baseConfigs, ship_coords_to_be):
 
@@ -532,10 +642,10 @@ class Battleships:
             
                 if event.button == 1: # left click 
 
-                    for battleship_rect, boat_val in self.battleship_rects: # choose a ship to place
-                        if battleship_rect.collidepoint(realToVirtual_mouse(baseConfigs)):
-                            if boat_val not in self.placed_ship_types:
-                                self.battleship_object = boat_val()
+                    for battleship_rect in self.battleship_rects: # choose a ship to place
+                        if battleship_rect.rect.collidepoint(realToVirtual_mouse(baseConfigs)):
+                            if battleship_rect.boat_type not in self.placed_ship_types:
+                                self.battleship_object = battleship_rect.boat_type()
 
                 if self.battleship_object is not None:
                     tile = self.get_tile_battleShipGame(baseConfigs, realToVirtual_mouse(baseConfigs))
@@ -545,6 +655,11 @@ class Battleships:
 
                         if placed is True:
                             self.placed_ship_types.add(type(self.battleship_object))
+                            
+                            for battleship_icon in self.battleship_rects:
+                                if battleship_icon.boat_type == getattr(self, "battleship_object").type:
+                                    battleship_icon.colour = baseConfigs.USED_ICON_COLOUR
+
                             self.battleship_object = None
                 
                 if len(self.placed_ship_types) == baseConfigs.MAX_ALLOWED_SHIPS and \
@@ -632,21 +747,83 @@ class EnemySetup:
             if len(enemy_ships) == baseConfigs.MAX_ALLOWED_SHIPS:
                 unplaced = False
 
-        return enemy_ship_coords
+        return enemy_ships
 
     def updating_enemyGrid(self, baseConfigs):
 
-        tiles_with_ships = self.AI_ship_placement(baseConfigs)
+        enemy_ships = self.AI_ship_placement(baseConfigs)
+        for ship in enemy_ships:
 
-        for x in range(baseConfigs.GAME_BOARD_SIZE):
-            for y in range(baseConfigs.GAME_BOARD_SIZE):
-                if not (self.grid[y][x].grid_pos[0] == 0 or self.grid[y][x].grid_pos[1] == 0):
+            ship_coords = ship.get_coords_ship_is_on()
+            
+            for x, y in ship_coords:
 
-                    if (x, y) in tiles_with_ships:
-                        self.grid[y][x].ship = True
+                self.grid[y][x].ship = ship
     
     def get_Enemy(self):
         return self.enemy_gameBoard
+
+class End:
+
+    def __init__(self, baseConfigs, filePaths, render):
+
+        self.filePaths = filePaths
+        self.render = render
+
+        self.endText, self.rectText, self.returnRect = self.create_endScreen(baseConfigs)
+
+        # this is what is displayed to screen at the end
+        self.finalEndText = None
+    
+    def create_endScreen(self, baseConfigs):
+    
+        # create the end text
+
+        font = pygame.font.Font(self.filePaths.font, baseConfigs.FONT_SIZE)
+
+        # "" are spaces inbetween text blocks
+        end_text = {
+            "win" : "You win",
+            "lose" : "You lose",
+            }
+        
+        RENDERED_TEXT = {
+            "win" : font.render(end_text["win"], True, baseConfigs.END_SCREEN_TEXT_COLOUR),
+            "lose" : font.render(end_text["lose"], True, baseConfigs.END_SCREEN_TEXT_COLOUR)
+            }
+
+        # return rect text
+
+        text = "Return"
+
+        RENDERED_RETURN_TEXT = font.render(text, True, baseConfigs.END_SCREEN_TEXT_COLOUR)
+
+        # create the return to main menu rectangle
+
+        returnRect = pygame.Rect(0, 0, baseConfigs.TILE_SIZE * 6, baseConfigs.TILE_SIZE * 2)
+
+        return RENDERED_TEXT, RENDERED_RETURN_TEXT, returnRect
+    
+    def draw_endScreen(self, baseConfigs):
+
+        self.render.fill_screen(baseConfigs)
+        self.render.draw_endScreen(baseConfigs, self)
+    
+    def display_endMenu(self, baseConfigs, events, victor):
+        
+        self.finalEndText = self.endText[victor]
+        self.draw_endScreen(baseConfigs)
+
+        for event in events:
+            
+            if event.type == pygame.MOUSEBUTTONDOWN:
+
+                if event.button == 1:
+
+                    if self.returnRect.collidepoint(realToVirtual_mouse(baseConfigs)) == True:
+                        
+                        return "new_game"
+        return "end_screen"
 
 class Help:
 
@@ -710,7 +887,7 @@ class Help:
                         
                         return "mainMenu"
         return "help"
-    
+        
 class MainMenu:
 
     def __init__(self, baseConfigs, filePaths, render):
@@ -790,10 +967,23 @@ class MainMenu:
 
 class Match():
 
-    def __init__(self, baseConfigs, enemy_setup, battleship, render):
+    def __init__(self, baseConfigs, explosion_sprites, enemy_setup, battleship, sound, render):
 
         self.render = render
-        
+
+        # animations ,frame is the current frame of the animation, 64 is the size of each sprite (fixed), baseConfigs.TILE_SIZE is what the size of each sprite is being changed to
+        self.animation = [explosion_sprites.get_img(frame, 64, 64, baseConfigs.TILE_SIZE, baseConfigs.COLOURKEY_EXPLOSIONS) # baseConfigs.COLOURKEY_EXPLOSIONS is the colour thats becoming transparent
+                                                                                                    # % 64 removes sprite sheet padding // 64 gets how many sprites are in spritesheet
+                           for frame in range((explosion_sprites.sprite_sheet.get_rect().width - (explosion_sprites.sprite_sheet.get_rect().width % 64)) // 64)
+
+                           ]
+        self.last_update = pygame.time.get_ticks()
+        self.frame = 0
+        self.animation_pos = None
+        self.animating = False
+
+        # enemy 
+
         self.enemy = enemy_setup
 
         self.enemy.AI_ship_placement(baseConfigs)
@@ -805,7 +995,14 @@ class Match():
             for y in range(1, baseConfigs.GAME_BOARD_SIZE):
                 self.possible_player_coords.append((x, y))      
 
+        # player
+
         self.player_gameBoard = battleship.player_gameBoard
+        self.turnOver = False
+
+        # sound
+
+        self.sound = sound
 
     def enemy_turn(self):
         
@@ -820,23 +1017,77 @@ class Match():
                 if tile.grid_pos == grid_pos:
                     tile.hit = True
 
+                    if tile.ship != None:
+
+                        tile.ship.hitTiles += 1
+
+                        self.animating = True
+                        self.sound.play_explosion()
+                        self.animation_pos = tile.rect.topleft
+
     def player_turn(self, baseConfigs):
         
         for row in self.enemy_gameBoard.grid:
             for tile in row:
 
-                if (tile.rect.collidepoint(realToVirtual_mouse(baseConfigs))) == True and (tile.hit == False):
+                if (tile.rect.collidepoint(realToVirtual_mouse(baseConfigs))) == True \
+                    and (tile.hit == False) \
+                    and ( 1 <= tile.grid_pos[0] < baseConfigs.GAME_BOARD_SIZE) \
+                    and ( 1 <= tile.grid_pos[1] < baseConfigs.GAME_BOARD_SIZE): # prevents player from hitting out of bounds + prevents player from hitting already hit squares
+                    
                     tile.hit = True
 
-                    return "valid"
-    
-    def render_screen(self, baseConfigs):
+                    if tile.ship != None:
+                        tile.ship.hitTiles += 1
 
+                    if tile.rect.collidepoint(realToVirtual_mouse(baseConfigs)) == True and tile.ship != None:
+                        
+                        self.animating = True
+                        self.sound.play_explosion()
+                        self.animation_pos = tile.rect.topleft
+
+                    return "valid"
+                
+    
+    def animate_clicksOnShip(self, baseConfigs):
+
+        animation_cd = baseConfigs.ANIMATION_CD
+
+        current_time = pygame.time.get_ticks()
+
+        if current_time - self.last_update >= animation_cd:
+
+            self.frame += 1
+            self.last_update = current_time
+
+            if self.frame == len(self.animation):
+
+                self.frame = 0 
+                self.animating = False
+
+    def render_screen(self, baseConfigs):
+        
+        self.render.fill_screen(baseConfigs) # to wipe old screen
         self.render.draw_board(self.player_gameBoard)                # draws player board to screen
         self.render.draw_labels(baseConfigs, self.player_gameBoard)
 
         self.render.draw_board(self.enemy_gameBoard)                    # draws enemy board to screen
         self.render.draw_labels(baseConfigs, self.enemy_gameBoard)
+
+        for row in self.enemy_gameBoard.grid:
+            for tile in row:
+
+                if tile.rect.collidepoint(realToVirtual_mouse(baseConfigs)) == True \
+                and 1 <= tile.grid_pos[0] < baseConfigs.GAME_BOARD_SIZE \
+                and 1 <= tile.grid_pos[1] < baseConfigs.GAME_BOARD_SIZE:
+                    
+                    self.render.highlight_selected_square(self.enemy_gameBoard, (tile.grid_pos))
+        
+        if self.animating == True:
+            self.animate_clicksOnShip(baseConfigs)
+            self.render.virtual_screen.blit(self.animation[self.frame], self.animation_pos)
+
+
     
     def check_wins(self):
 
@@ -858,14 +1109,15 @@ class Match():
                     shipTilesLeft_player += 1
 
         if shipTilesLeft_enemy == 0:
-            print("player win")
-
-            exit() 
+            
+            return "end_screen", "win" 
             
         elif shipTilesLeft_player == 0:
-            print("enemy win")
 
-            exit()                   
+            return "end_screen", "lose"
+
+        else:
+            return None                
                 
     def order_of_instructions(self, baseConfigs, events):
 
@@ -873,30 +1125,34 @@ class Match():
         self.player_gameBoard.update_board()
         self.render_screen(baseConfigs)
 
-        turnOver = False
         validity = "invalid"
+        if not self.animating: # only allow a player to click when an animation isnt happening
+            for event in events:
 
-        for event in events:
+                if event.type == pygame.MOUSEBUTTONDOWN:
 
-            if event.type == pygame.MOUSEBUTTONDOWN:
-
-                if event.button == 1:
-                    
-                    validity = self.player_turn(baseConfigs)
-
-                    if validity == "valid":
-                        turnOver = True
+                    if event.button == 1:
+                        
+                        validity = self.player_turn(baseConfigs)
+                        # if player successfully hits an enemy tile that hasnt been hit yet then turn over
+                        if validity == "valid":
+                            self.turnOver = True
                 
-        if turnOver == True:
+        if getattr(self, "turnOver") and self.animating == False:
+
             self.enemy_turn()
+            self.turnOver = False
         
-        self.check_wins()    
+        
+        if self.check_wins() != None and self.animating == False:
+
+            return self.check_wins()
           
-        return "battleShips_game"
+        return "battleShips_game", None
 
 class displayed_screen():
     
-    def __init__(self, window, virtual_screen, mainMenu, battleships, gameMatch, help, render):
+    def __init__(self, window, virtual_screen, mainMenu, battleships, gameMatch, help, end_screen, sound, render):
 
         # renders stuff (needed to scale the res to user screen)
 
@@ -913,12 +1169,21 @@ class displayed_screen():
         self.battleships = battleships
         self.gameMatch = gameMatch
         self.help = help
+        self.end_screen = end_screen
+        
+        # data between screens
+
+        self.victor = None
+
+        # sound
+
+        self.sound = sound
 
         # running and screen states
         self.state = "mainMenu"
         self.running = True
     
-    def run(self, baseConfigs):
+    def run(self, baseConfigs, filePaths, explosion_sprites):
 
         while self.running == True:
 
@@ -933,6 +1198,9 @@ class displayed_screen():
 
                     baseConfigs.RESOLUTION = event.size
                     self.window = pygame.display.set_mode(baseConfigs.RESOLUTION, pygame.RESIZABLE)
+                
+                if event.type == self.sound.MUSIC_END:
+                    self.sound.play_bg_music()
 
             match self.state:
 
@@ -946,15 +1214,30 @@ class displayed_screen():
             
                 case "battleShips_game":
 
-                    self.state = self.gameMatch.order_of_instructions(baseConfigs, events)
+                    self.state, self.victor = self.gameMatch.order_of_instructions(baseConfigs, events)
             
                 case "help":
 
                     self.state = self.help.display_helpMenu(baseConfigs, events)
 
+                case "settings":
+
+                    print("Add settings later")
+                    self.state = "mainMenu"
+
+                case "end_screen":
+
+                    self.state = self.end_screen.display_endMenu(baseConfigs, events, self.victor)
+
                 case "quit":
 
                     self.running = False
+
+                case "new_game":
+
+                    self.battleships, self.gameMatch = newGame(baseConfigs, filePaths, self.render, explosion_sprites, self.sound)
+                    self.state = "mainMenu"
+    
 
                 case _:
 
@@ -978,6 +1261,21 @@ def realToVirtual_mouse(baseConfigs): # takes resolution as input and returns x 
 
     return (virtual_x_coordinates, virtual_y_coordinates)
 
+def newGame(baseConfigs, filePaths, render, explosion_sprites, sound):
+
+    player_gameBoard = Board(baseConfigs, filePaths, is_enemy = False)                                     # create the player board
+    enemy_gameBoard  = Board(baseConfigs, filePaths, is_enemy = True)                                      # create the enemy board
+    player_gamePanel = Panel(baseConfigs, filePaths, player_gameBoard.back_board, player_gameBoard.origin) # create player selection panel
+
+    battleship       = Battleships(player_gameBoard, player_gamePanel, render)         # battleship screen
+    enemy_setup      = EnemySetup(enemy_gameBoard)                                     # enemy setup time
+
+
+
+    game_match       = Match(baseConfigs, explosion_sprites, enemy_setup, battleship, sound, render)             # playing against the AI
+
+    return battleship, game_match
+
 def loadStartUp():
 
     pygame.init()                                                               #initalise pygame
@@ -985,29 +1283,26 @@ def loadStartUp():
     filePaths = FilePaths()                                                     # creates file paths preset
     baseConfigs = Configs()                                                     # creates config preset     / maybe make read from a file
 
+    sound = Sound(filePaths.explosion_sound, filePaths.background_music)
+    sound.play_explosion()
+
     window = pygame.display.set_mode(baseConfigs.RESOLUTION, pygame.RESIZABLE)  # create display window
     virtual_screen = pygame.Surface(baseConfigs.VIRTUAL_SURFACE)                # create fixed window
     gameIcon = pygame.image.load(filePaths.battleships_icon)                    # load window icon
 
     render = Renderer(virtual_screen, window)
+    explosion_sprites = SpriteSheet(filePaths.explosion_spritesheet)
 
     pygame.display.set_icon(gameIcon)                                           # display the game icon
     pygame.display.set_caption("Battleships")                                   # name the window icon
 
-    mainMenu = MainMenu(baseConfigs, filePaths, render)                       # create the main menu
+    mainMenu = MainMenu(baseConfigs, filePaths, render)                         # create the main menu
+    help_Menu        = Help(baseConfigs, filePaths, render)                     # create the help menu
+    end_screen = End(baseConfigs, filePaths, render)                            # create the end screen
 
-    player_gameBoard = Board(baseConfigs, filePaths, is_enemy = False)                     # create the player board
-    enemy_gameBoard  = Board(baseConfigs, filePaths, is_enemy = True)                      # create the enemy board
-    player_gamePanel = Panel(baseConfigs, filePaths, player_gameBoard.back_board, player_gameBoard.origin) # create player selection panel
+    battleship, game_match = newGame(baseConfigs, filePaths, render, explosion_sprites, sound)
 
-    battleship       = Battleships(player_gameBoard, player_gamePanel, render)                # battleship screen
-    enemy_setup      = EnemySetup(enemy_gameBoard)                                            # enemy setup time
-
-    help_Menu        = Help(baseConfigs, filePaths, render)
-
-    game_match          = Match(baseConfigs, enemy_setup, battleship, render)             # playing against the AI
-
-    game = displayed_screen(window, virtual_screen, mainMenu, battleship, game_match, help_Menu, render) # creates game controller
-    game.run(baseConfigs)                                                                       # runs the game
+    game = displayed_screen(window, virtual_screen, mainMenu, battleship, game_match, help_Menu, end_screen, sound, render) # creates game controller
+    game.run(baseConfigs, filePaths, explosion_sprites)                                                               # runs the game
 
 loadStartUp()
