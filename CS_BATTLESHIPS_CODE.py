@@ -2,6 +2,11 @@ import pygame
 import random
 
 class FilePaths:
+    """
+    this is where the file paths are stored
+    i did this to centralise where all the files in the program being used are stored
+    probably shouldnt be a class as its instanced once and i dont think it should change
+    """
     def __init__(self):
 
         self.ocean_bg = r"PICTURES\bg_ocean_v2.png"
@@ -16,6 +21,11 @@ class FilePaths:
 
 
 class Configs:
+    """
+    this is where all the constants are stored
+    i did this so changing one setting in configs changes all related code to the constant
+    i used a class because i thought i could have different save presets which would be different objects
+    """
     def __init__(self):
 
         self.VIRTUAL_SURFACE = (1920, 1080)
@@ -28,6 +38,11 @@ class Configs:
         self.TILE_SIZE = 50
         self.FONT_SIZE = 50 # keep below tile size
         self.BUTTON_SIZE = self.VIRTUAL_SURFACE[1] // 10 # this is the size of the button height, the size of the button width is double this
+
+        # battleships menu name 
+
+        self.GAMENAME_FONT_SIZE = 100
+        self.GAMENAME_COLOUR    = (255, 255, 255)
 
         self.LINE_WIDTH_X = self.TILE_SIZE + 5 # this (5) is the pixel length between each box change the one value to change how thick the lines are (how apart the boxes are)
         self.LINE_WIDTH_Y = self.TILE_SIZE + 5
@@ -81,10 +96,15 @@ class Configs:
         self.MAX_ALLOWED_SHIPS = 5
 
 class Sound:
+    """
+    loads and plays different sounds
+    sounds are centralised to avoid repeated coding and seperate audio from logic
+    probably shouldnt be a class as theres one instance
+    """
 
     def __init__(self, explosion_sound, background_music):
 
-        self.explosion_sound = explosion_sound
+        self.explosion_sound = pygame.mixer.Sound(explosion_sound)
         self.background_music = background_music
 
         self.MUSIC_END = pygame.USEREVENT + 1
@@ -95,22 +115,31 @@ class Sound:
     def startUP(self):
 
         self.play_explosion()
+        self.play_bg_music()
 
     def play_bg_music(self):
 
-        pygame.mixer_music.load(self.background_music)
+        pygame.mixer.music.load(self.background_music)
         pygame.mixer.music.play(-1)
     
     def play_explosion(self):
 
-        pygame.mixer_music.unload() #unload the bg music from music mixer
-        pygame.mixer_music.load(self.explosion_sound)
-        pygame.mixer_music.play()
-
-        pygame.mixer.music.set_endevent(self.MUSIC_END)
-
+        self.explosion_sound.play()
 
 class Tile:
+    """
+    represents one individual tile on a board
+    each tile has 7 properties
+    rect, this is the rect object for the tile its whats drawed to the screen
+    grid_pos, this is where the tiles location on the board i.e. (3, 5)
+    label, this is where the tile is stored on the board using the boards letter i.e. (3, C)
+    colour, this is the current colour of the tile
+    is_enemy, this is false when the tile is on the player board and true when it is on the enemy ai board
+    ship, this is the ship object stored on the tile. if there is no ship it is None
+    hit, this explains if the tile has been hit its False for unhit tiles and True for hit tiles
+
+    tile_update, this changes the colour dependent on if its been hit, if its an enemy owned tile and if it has a ship on it
+    """
    
     def __init__(self, rect, grid_pos, label, colour, is_enemy):
        
@@ -124,7 +153,6 @@ class Tile:
    
    
     def tile_update(self):
-
 
         if self.ship != None and self.hit == True:
             if self.ship.hitTiles == self.ship.size:
@@ -143,6 +171,17 @@ class Tile:
             self.colour = (255, 255, 255) #if nothing make tile white
 
 class SpriteSheet:
+    """
+    i did this to centralise all the sprite sheets
+    theres only one sprite sheet
+
+    get_img this takes 5 inputs frame, width, height, scale and colour
+    frame, this is the current frame of the sprite
+    width, this is the width of the current sprite on the spritesheet this is needed to cut it up
+    height, this is the height of the current sprite on the spritesheet this is needed to cut it up
+    scale, this is what the sprite will be changed to. Sprites should only be on square rects. The new resolution will be (scale, scale) where scale are pixels
+    colour, this is the colour that will be set to transparent
+    """
 
     def __init__(self, sprite_sheet):
 
@@ -150,9 +189,6 @@ class SpriteSheet:
         if type(sprite_sheet) == str:
 
                 self.sprite_sheet = pygame.image.load(sprite_sheet).convert_alpha()
-
-
-
         else:
             self.sprite_sheet = sprite_sheet
         
@@ -174,13 +210,23 @@ class SpriteSheet:
 # ships
 
 class Ship:
+    """
+    i did this so each ship type can inherit the the things it needs
+    size, this is how long the ship is in tiles
+    type, this is the type of ship that the object is i.e. (cruiser, carrier)
+    shipStartingPos, this is where the ship starts i did this as I thought i would make each ship tile have a different image at some point so i would need the head of the ship to know where it starts
+                     if there is no ship its None. Its also needed to calculate where the ships position is
+    rotated, this is if the ship is rotated. If its False ship orientation is vertical and if its true ship orientation is horizontal
+
+    get_coords_ship_is_on this returns the coords the a ship is on and returns the coords of the ship as a list
+    """
 
     def __init__(self, size, type, shipStartingPos = None):
 
         self.hitTiles = 0
         self.size = size
         self.type = type
-        self.ship_starting_pos = shipStartingPos #no idea if this should start with anything
+        self.ship_starting_pos = shipStartingPos
         self.rotated = False  # False = Vertical, True = Horizontal
    
     def get_coords_ship_is_on(self):
@@ -202,6 +248,9 @@ class Ship:
         return coords
        
 class Carrier(Ship):
+    """
+    This is a set ship. It size is 5 and its a carrier it inherits from the parent ship class
+    """
 
     def __init__(self):
 
@@ -209,12 +258,18 @@ class Carrier(Ship):
 
 
 class Battleship(Ship):
+    """
+    This is a set ship. It size is 4 and its a carrier it inherits from the parent ship class
+    """
 
     def __init__(self):
 
         super().__init__(size = 4, type = Battleship)
 
 class Cruiser(Ship):
+    """
+    This is a set ship. It size is 3 and its a cruiser it inherits from the parent ship class
+    """
 
     def __init__(self):
 
@@ -222,6 +277,9 @@ class Cruiser(Ship):
 
 
 class Submarine(Ship):
+    """
+    This is a set ship. It size is 3 and its a submarine it inherits from the parent ship class
+    """
 
     def __init__(self):
 
@@ -229,12 +287,31 @@ class Submarine(Ship):
 
 
 class Destroyer(Ship):
+    """
+    This is a set ship. It size is 2 and its a destroyer it inherits from the parent ship class
+    """
 
     def __init__(self):
 
         super().__init__(size = 2, type = Destroyer)
 
 class battleship_icons:
+    """
+    This class creates battleship icons
+    Each icon has 
+    size, this is the size of the icon in tiles
+    column, this is if the icon is on the left or right side of the panel
+    row, this is what row each icon appears on
+    boat_type, this is the type of boat each icon represents, i.e. (carrier, cruiser)
+    rect, this is the rect object of each icon
+    colour, this is the colour of each icon
+
+    create_rect, this creates the rectangle object of the icons. It takes 3 inputs rect_panel, margin and tile
+    rect_panel, this is the panel that the icons appear on
+    margin, this is the distance from the border of the panel that the icons appear on
+    tile, this is used to relate icon size to the size of tiles to ensure they dont change if the user changes the size of tiles in settings.
+    create_rect returns the rect object of the icon.
+    """
 
     def __init__(self, size, column, row, boat_type, rect_panel, margin, tile):
 
@@ -260,6 +337,24 @@ class battleship_icons:
         return rect
 
 class Panel:
+    """
+    this represents the panel that appears next to the player board
+    it has/uses
+    filepaths, filepaths are used to get the font of the text as this create/initialises/loads? the text into memory
+    origin, this is the origin of the players board so the panel knows where to position itself in relation to it
+    backboard, this it the players back board. The panel gets its height from this
+
+    create_side_panel, this creates all icon objects as well as rendering the text used and the rect objects for the ready button
+    it returns: battleship_rects, ready_button, rect_panel, RENDERED_READY_TEXT
+
+    battleship_rects, these are the battleship icons displayed on the panel
+    ready_button, this is the ready button that the player uses after setting up their player board
+    back_board_panel, this is the panel the tiles on. it is the back of the player board
+    rendered_ready_text, this is the text that is displayed on top of the ready button
+
+    back_board_panel_colour, this is the colour of the back board panel the player icons are displayed on
+    ready_button_colour, this is the colour of the ready button the player icons are displayed on
+    """
 
     def __init__(self, baseConfigs, filePaths, back_board, origin):
 
@@ -318,6 +413,24 @@ class Panel:
         return battleship_rects, ready_button, rect_panel, RENDERED_READY_TEXT
 
 class Board:
+    """
+    this class creates the board for the player and enemy
+    it has
+
+    filePaths, these are the filepaths i used the for the fonts
+    is_enemy , this determines whether the board is an enemy board or player board. if a board is an enemy board the origin changes
+    backBoard_colour, this uses the constant from the configs class to get the back board colour
+    origin, this is the origin of the board where it is dispalyed
+
+    create_tilemap, it takes baseconfigs as an input and returns RENDERED_LETTERS, RENDERED_NUMBERS, GRID, black_square_rect
+    create_tilemap renders the letters, labels and creates the grid using the tile class the black_square_rect is the backboard used for the back of the board
+    RENDERED_LETTERS, these are the letters displayed on the baord rendered by the font
+    RENDERED_NUMBERS, these are the numbers displayed on the baord rendered by the font
+    GRID, this is a 2d list containing all the tiles displayed on the board
+    black_square_rect, this is the backboard for the board
+
+    update_board, this function iterates through each tile on the board calling the tile_update function ensuring each button is the correct colour
+    """
 
     def __init__(self, baseConfigs, filePaths, is_enemy):
 
@@ -379,6 +492,39 @@ class Board:
                 tile.tile_update()
 
 class Renderer:
+    """
+    - prolly shouldnt be a class as i think i only reused virtualToReal_window so nothings actually getting reused i also wish i made a class for creating buttons so idk
+
+    renderer, this class is in charge of rendering everything
+    virtual_screen, this is the surface everything gets blitted to before its scaled the users res
+    window, this is the displayed window it should be the users res / the user can change it
+
+    virtualToReal_window, this function maps the virtual_screen to the window it takes baseConfigs as a parameter
+
+    draw_mainMenu, this draws the main menu. it takes baseconfigs and the mainmenu object as an input
+    it blits everything to do with the main menu onto the virtual screen
+
+    draw_endScreen, this function takes baseconfigs and the end screen object as an input
+    it blits everything to do with the end screen onto the virtual screen
+
+    draw_helpScreen, this function takes baseconfigs and the help screen object as an input
+    it blits everything to do with the help screen onto the virtual screen
+
+    fill_screen, this function fills the virtual screen. it takes baseconfigs as an input. i think i reused this one!!
+
+    draw_board, this function takes a board object as an input and draws it to screen
+
+    draw_labels, this function takes baseConfigs and a board object as an input it draws the labels to their respective boards
+
+    draw_external_player_panel, this function takes self, player_game_panel as an input and draws the player game_panel as well as its buttons to the virtual screen
+
+    highlight_selected_square_placingShips, this function takes the board object and ship_coords_to_be list as inputs. it changes the colour of the tiles on ship_coords_to_be_list i could have probably done this 
+                                            in the tile class also 0.75 is hardcoded so it should probably be a constant in the configs class so the user can change it. this function only changes the colour of   
+                                            tiles on the player board
+
+    highlight_selected_square, this function takes board object and grid_pos tuple as inputs. it changes the colour of an individual tile only on the enemy board. i probably should have mashed the above function
+                                with this function
+    """
 
     def __init__(self, virtual_screen, window):
 
@@ -394,7 +540,7 @@ class Renderer:
     # main menu renders
 
     def draw_mainMenu(self, baseConfigs, mainMenu):
-
+        
         # draw buttons
 
         # this visualises the collidepoint for the rect text
@@ -405,13 +551,12 @@ class Renderer:
 
         self.virtual_screen.blit(mainMenu.menu_bg, (0, 0))
 
-        current_text = mainMenu.text
 
         for index, button in enumerate(mainMenu.buttons): # so the text should be the same as the buttons and if its not then theres an issue here
 
             try:
 
-                currentButtonText = current_text[index]
+                currentButtonText = mainMenu.text[index]
                 currentButtonPosition = currentButtonText.get_rect(center = button.center)
 
                 self.virtual_screen.blit(currentButtonText, currentButtonPosition)
@@ -539,6 +684,37 @@ class Renderer:
         pygame.draw.rect(self.virtual_screen, ((board.grid[y][x].colour[0] * 0.75, board.grid[y][x].colour[1] * 0.75, board.grid[y][x].colour[2] * 0.75)), board.grid[y][x].rect)
 
 class Battleships:
+    """
+    this class is used in the setup phase. i think its okay being a class because it can be reused when restarting the everything
+    it uses
+
+    player_gameBoard, this is the player board object
+    player_gamePanel, this is the player panel object
+    render, this renders things its the render class object
+    grid, this is the grid derived from the player board object
+    battleship_rects, ths is derived from the palyer_gamePanel
+    battleship_object, this is the current battleship object the player is "holding". the player holds a battleship by clicking on the respective icon. if there is no icon its None
+    placed_ship_types, this is the ships placed. i used a set to avoid duplication so the same ship cant be placed multiple times
+
+    get_tile_battleShipGame, function this takes baseConfigs as an input and sometimes specific coordinates (if no specific coords its None). 
+                             it returns the grid_pos of the tile clicked on or none if there was no tile. 
+                             given coordinates is a useless parameter because i always call this function using realToVirtual_mouse so i dont think it makes any difference and can be removed
+
+    place_ship, this function takes baseConfigs, ship_object, start_pos and place_ship as parameters.
+                it returns false if the ship is out of bounds (false placement)
+                it returns true if the ship is successfully placed 
+                it returns the ship coords if the ship is overlapping with another ship (to colour in the overlapping tile)
+    
+    highlight_selected_square_placingShips, this function takes baseConfigs and ship_coords_to_be as inputs. its the logic behind the rendering in the render class it does not return anything
+
+    draw_battleship_screen, this function takes baseConfigs as an input and calls all of the rendering functions
+
+    running_battleships_setup, this function takes baseConfigs, events as input it controls what happens in the setup phase.
+                                it returns "battleships_game_setup" if nothing has happened
+                                it returns "battleShips_game" if the player has placed all ships and pressed the ready button
+
+    get_playerGrid, this function takes nothing as an input and returns the player grid. i dont think i used this i forgot i added it, probably should have instead of .grid this also might have been better in boards???
+    """
 
     def __init__(self, player_gameBoard, player_gamePanel, render):
 
@@ -691,6 +867,17 @@ class Battleships:
         return self.player_gameBoard
 
 class EnemySetup:
+    """
+    this class is what sets up the enemy board. its a class so a new object can be created when all the boards are reset. it takes the enemy board as an input
+    enemy_gameBoard, this is the enemy game board
+    grid, this is the enemy grid
+    shipsToPlace, these are the unplaced ships of the enemy. its a hardcoded constant which should be changed as now if the user changes the amount of ships to place then its not going to change what the enemy places
+                    good thing i didnt add that
+    
+    AI_ship_placement, this function takes baseConfigs as an input it returns the placed enemy ships
+    updating_enemyGrid, this function takes baseConfigs as an input. it places the ships returned from AI_ship_placement
+    get_Enemy, this returns the enemy board
+    """
 
     def __init__(self, enemy_gameBoard):
         
@@ -703,11 +890,10 @@ class EnemySetup:
         unplaced = True
         enemy_ships = []
         enemy_ship_coords = []
-        shipsToPlace = [Carrier, Battleship, Cruiser, Submarine, Destroyer]
 
         while unplaced:
 
-            shipChosen = random.randint(0, len(shipsToPlace)-1) # choose a random ship from shipsToPlace
+            shipChosen = random.randint(0, len(self.shipsToPlace)-1) # choose a random ship from shipsToPlace
 
             row = random.randint(1, baseConfigs.GAME_BOARD_SIZE -1 ) # choose a random row on the grid
             column = random.randint(1, baseConfigs.GAME_BOARD_SIZE - 1) # choose a random column on the grid
@@ -718,7 +904,7 @@ class EnemySetup:
             else:
                 rotation = False
 
-            new_ship = shipsToPlace[shipChosen]()
+            new_ship = self.shipsToPlace[shipChosen]()
 
             new_ship.ship_starting_pos = (column, row)
             new_ship.rotated = rotation
@@ -742,7 +928,7 @@ class EnemySetup:
                 enemy_ships.append(new_ship)
                 enemy_ship_coords.extend(new_ship.get_coords_ship_is_on())
 
-                shipsToPlace.pop(shipChosen)
+                self.shipsToPlace.pop(shipChosen)
             
             if len(enemy_ships) == baseConfigs.MAX_ALLOWED_SHIPS:
                 unplaced = False
@@ -764,6 +950,23 @@ class EnemySetup:
         return self.enemy_gameBoard
 
 class End:
+    """
+    this is the end screen 
+
+    baseConfigs, its constants
+    filePaths, its where the files are stored
+    render, it renders things
+    finalEndText, what the text at the end is 
+
+    create_endScreen, takes baseConfigs as an input returns RENDERED_TEXT, RENDERED_RETURN_TEXT, returnRect
+    RENDERED_TEXT, this is the text displayed at the end either "you win" or "you lose"
+    RENDERED_RETURN_TEXT, this is the text which is displayed over the returnRect 
+    returnRect, this is the rect to return to the main menu when clicked
+
+    draw_endScreen, function it calls the render functions from the render object it takes baseConfigs as an input
+    display_endMenu, function takes inputs: baseConfigs, events, victor. returns "end_screen" if the returnRect is clicked and "new_game" otherwise
+
+    """
 
     def __init__(self, baseConfigs, filePaths, render):
 
@@ -826,6 +1029,22 @@ class End:
         return "end_screen"
 
 class Help:
+    """
+    this is the help screen 
+
+    baseConfigs, its constants
+    filePaths, its where the files are stored
+    render, it renders things
+
+    create_helpScreen, takes baseConfigs as an input returns RENDERED_TEXT, RENDERED_RETURN_TEXT, returnRect
+    helpText, this is a lot of text which lists basic instructions on how to play
+    rectText, this is the text which is displayed over the returnRect 
+    returnRect, this is the rect to return to the main menu when clicked
+
+    draw_helpScreen, function it calls the render functions from the render object it takes baseConfigs as an input
+    display_helpMenu, function takes inputs: baseConfigs, events. returns "mainMenu" if the returnRect is clicked and "help" otherwise
+
+    """
 
     def __init__(self, baseConfigs, filePaths, render):
 
@@ -889,11 +1108,34 @@ class Help:
         return "help"
         
 class MainMenu:
+    """
+    this is the main menu class object it takes baseconfigs filepaths and render as inputs
+    filepaths, its filepaths
+    render, its render
+
+    create_mainMenu, it takes baseConfigs and filePaths as inputs it returns
+    BUTTONS, the buttons displayed to the main menu
+    COVER_IMAGE, the cover image displayed on the main menu from file paths
+    RENDERED_TEXT, the text displayed over buttons 
+    RENDERED_TEXT_HIGHLIGHTED, the same text displayed over buttons in a different colour. i wanted to change the colour when a user hovered their mouse over the text but never got round to it
+    RENDERED_GAMENAME,  this is the text which should be displayed it says battleships to tell you what youre playing. i dont think i got round to finishign this
+    MENU_BG, this is the background iamge of menu scaled to the virtual screne res
+
+    draw_mainMenu takes baseconfigs as input draws things to screen
+    get_button_mainMenu, function takes baseConfigs, buttons as inputs. returns the list index of the button clicked
+
+    running_mainMenu takes baseConfigs + events as inputs returns :
+        battleships_game_setup 
+        settings
+        help
+        quit
+        dependent on the button clicked and mainMenu otherwise
+    """
 
     def __init__(self, baseConfigs, filePaths, render):
 
         self.filePaths = filePaths
-        self.buttons, self.cover_image, self.text, self.highlighted_text, self.menu_bg = self.create_mainMenu(baseConfigs, filePaths)
+        self.buttons, self.cover_image, self.text, self.highlighted_text, self.rendered_gamename, self.menu_bg = self.create_mainMenu(baseConfigs, filePaths)
         self.render = render
 
     def create_mainMenu(self, baseConfigs, filePaths):
@@ -909,6 +1151,9 @@ class MainMenu:
         # render more text + working on
 
         mainName = "Battleships"
+        font = pygame.font.Font(self.filePaths.font, baseConfigs.GAMENAME_FONT_SIZE)
+
+        RENDERED_GAMENAME = font.render(mainName, True, baseConfigs.GAMENAME_COLOUR)
 
         # render the button text
     
@@ -926,7 +1171,7 @@ class MainMenu:
         MENU_BG = pygame.image.load(filePaths.ocean_bg).convert()
         MENU_BG = pygame.transform.scale(MENU_BG, baseConfigs.VIRTUAL_SURFACE)
 
-        return BUTTONS, COVER_IMAGE, RENDERED_TEXT, RENDERED_TEXT_HIGHLIGHTED, MENU_BG
+        return BUTTONS, COVER_IMAGE, RENDERED_TEXT, RENDERED_TEXT_HIGHLIGHTED, RENDERED_GAMENAME, MENU_BG
 
     def draw_mainMenu(self, baseConfigs):
         
@@ -966,6 +1211,37 @@ class MainMenu:
         return "mainMenu"
 
 class Match():
+    """
+    render, this is render
+    animation, this is a list of all the sprites from the spritesheet
+    last_update, this is when the sprites were last updated
+    frame, this is the current frame of the explosion animation
+    animation_pos, this is the position of the animation, None otherwise
+    animating, True if there are explosions being animated, False otherwise
+    enemy, this is the entire enemy_setup object
+    enemy_gameBoard, this is the enemy game board
+    possible_player_coords, this is every possible coord a ship could be on 
+    player_gameBoard, this is the player game board
+    turnOver, this is if the player has made a move
+    sound, its the sound object
+
+    enemy_turn function, takes nothing as an input it randomly selects a coord from possible_player_coords to hit
+    player_turn, takes baseConfigs as an input it returns "valid" if the player successfully makes a move
+
+    animate_clicksOnShip, function, it takes baseconfigs as an input and animates through the animation (returns nothing)
+    render_screen it calls all of the rendering functions
+
+    check_wins, function, returns :
+        "end_screen", "win", if the enemy runs out of ship tiles
+        "end_screen", "lose", if the player runs out of ship tiles
+        None, if nothing has happened
+
+    order_of_instructions takes baseConfigs and events as inputs it returns :
+        "battleShips_game", None, it returns if nothing is happening (via checkwins). None is returned as no one has won yet
+
+
+
+    """
 
     def __init__(self, baseConfigs, explosion_sprites, enemy_setup, battleship, sound, render):
 
@@ -1151,6 +1427,30 @@ class Match():
         return "battleShips_game", None
 
 class displayed_screen():
+    """
+    
+    render, it renders things its the rendering object
+    window, its the user res window
+    virtual_screen, its the pretend window which is actually a surface object
+
+    # different screens
+
+    mainMenu, its the mainMenu object
+    battleships, its the battleship object
+    gameMatch, its the match object
+    help, its the help object
+    end_screen, its the end_screen object
+    
+    victor, its who won. None otherwise
+    sound, its the sound object
+    
+    state, its the current state
+    running, its if the window is running or not, True or False its a boolean
+
+    run takes baseConfigs, filePaths, explosion_sprites as inputs. its the state controller
+
+
+    """
     
     def __init__(self, window, virtual_screen, mainMenu, battleships, gameMatch, help, end_screen, sound, render):
 
@@ -1198,9 +1498,6 @@ class displayed_screen():
 
                     baseConfigs.RESOLUTION = event.size
                     self.window = pygame.display.set_mode(baseConfigs.RESOLUTION, pygame.RESIZABLE)
-                
-                if event.type == self.sound.MUSIC_END:
-                    self.sound.play_bg_music()
 
             match self.state:
 
@@ -1252,6 +1549,7 @@ class displayed_screen():
 
         exit()
 
+# this maps the window mouse coords to the virtual res mouse coords
 def realToVirtual_mouse(baseConfigs): # takes resolution as input and returns x and y mouse coordinates as tuple
 
     mouse_x_coordinates, mouse_y_coordinates = pygame.mouse.get_pos()
@@ -1261,6 +1559,7 @@ def realToVirtual_mouse(baseConfigs): # takes resolution as input and returns x 
 
     return (virtual_x_coordinates, virtual_y_coordinates)
 
+# recreate all the necessary objects inorder to start a new game
 def newGame(baseConfigs, filePaths, render, explosion_sprites, sound):
 
     player_gameBoard = Board(baseConfigs, filePaths, is_enemy = False)                                     # create the player board
@@ -1284,7 +1583,7 @@ def loadStartUp():
     baseConfigs = Configs()                                                     # creates config preset     / maybe make read from a file
 
     sound = Sound(filePaths.explosion_sound, filePaths.background_music)
-    sound.play_explosion()
+    sound.startUP()
 
     window = pygame.display.set_mode(baseConfigs.RESOLUTION, pygame.RESIZABLE)  # create display window
     virtual_screen = pygame.Surface(baseConfigs.VIRTUAL_SURFACE)                # create fixed window
